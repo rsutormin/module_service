@@ -808,7 +808,7 @@ public class AceEditor extends Composite implements RequiresResize, HasText, Tak
 	}-*/;
 
 	public native void showKeyboardShortcuts() /*-{
-		var lib = $wnd.ace.require('ace/ext/keybinding_menu');
+		var lib = $wnd.require('ace/ext/keybinding_menu');
 		var editor = this.@edu.ycp.cs.dh.acegwt.client.ace.AceEditor::editor;
 		lib.showKeyboardShortcuts(editor);
 	}-*/;

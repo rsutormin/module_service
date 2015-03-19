@@ -2,6 +2,7 @@ package us.kbase.moduleservice.gwt.client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +12,7 @@ import java.util.TreeSet;
 import us.kbase.moduleservice.gwt.client.parser.KbModule;
 
 import com.google.gwt.core.client.Callback;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Style;
@@ -24,9 +26,11 @@ import com.google.gwt.event.logical.shared.SelectionEvent;
 import com.google.gwt.event.logical.shared.SelectionHandler;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
+import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DialogBox;
@@ -34,6 +38,8 @@ import com.google.gwt.user.client.ui.DockLayoutPanel;
 import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.MenuBar;
+import com.google.gwt.user.client.ui.PasswordTextBox;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Tree;
@@ -49,23 +55,24 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorCursorPosition;
 public class KidlWebEditorPanel extends DockLayoutPanel {
 
 	private String token = null;
-	//private RootPanel rootPanel = null;
 	private DblClckTree typeTree = null;
-	private JavaScriptObject jsServices = JavaScriptObject.createObject();
+	private JSO jsServices = JSO.newObject();
 	private Map<String, Map<String, String>> mod2type2ver = null;				// For all modules and types
+	private Set<String> ownedModules = new HashSet<String>();                   // Is used if token != null
 	private Map<String, KbModule> modules = new HashMap<String, KbModule>();	// For ones used in tabs and included only
 	private ScrolledTabLayoutPanel tabPanel = null;
 	private Map<String, KidlWebEditorTab> tabMap = new TreeMap<String, KidlWebEditorTab>();
 	private Map<String, Integer> tabIndexMap = new TreeMap<String, Integer>();
 	private String wsUrl = "https://kbase.us/services/ws";
-	
+    private final ModuleServiceAsync gwtService = GWT
+            .create(ModuleService.class);
+
 	public KidlWebEditorPanel(final String token, final String moduleName, 
 			final String typeName, final String wsUrlInput) {
 	    super(Unit.PX);
 		this.token = token;
 		if (wsUrlInput != null)
 			this.wsUrl = wsUrlInput;
-		//rootPanel = RootPanel.get(divId);
 
 		FlowPanel upper = new FlowPanel();
 		upper.getElement().getStyle().setProperty("border", "1px solid #ccc");
@@ -103,10 +110,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		Button undo = new Button("U", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				KidlWebEditorTab tab = getSelectedTab();
-				if (tab != null)
-					tab.getAceEditor().undo();
-				focus();
+				undo();
 			}
 		});
 		undo.getElement().getStyle().setHeight(30, Unit.PX);
@@ -116,10 +120,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		Button redo = new Button("R", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				KidlWebEditorTab tab = getSelectedTab();
-				if (tab != null)
-					tab.getAceEditor().redo();
-				focus();
+				redo();
 			}
 		});
 		redo.getElement().getStyle().setHeight(30, Unit.PX);
@@ -129,10 +130,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		Button auto = new Button("A", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				KidlWebEditorTab tab = getSelectedTab();
-				if (tab != null)
-					tab.getAceEditor().autocomplete();
-				focus();
+				autocomplete();
 			}
 		});
 		auto.getElement().getStyle().setHeight(30, Unit.PX);
@@ -142,10 +140,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		Button find = new Button("F", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				KidlWebEditorTab tab = getSelectedTab();
-				if (tab != null)
-					tab.getAceEditor().openFind();
-				focus();
+				find();
 			}
 		});
 		find.getElement().getStyle().setHeight(30, Unit.PX);
@@ -155,10 +150,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		Button bind = new Button("K", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				KidlWebEditorTab tab = getSelectedTab();
-				if (tab != null)
-					tab.getAceEditor().showKeyboardShortcuts();
-				focus();
+				keyboardShortcuts();
 			}
 		});
 		bind.getElement().getStyle().setHeight(30, Unit.PX);
@@ -176,7 +168,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		panel.getElement().getStyle().setRight(0, Unit.PX);
 		panel.getElement().getStyle().setBottom(0, Unit.PX);
 		//position: absolute; overflow: hidden; left: 0px; top: 32px; right: 0px; bottom: 0px;
-		panel.addNorth(upper, 32);
+		panel.addNorth(createMenu(), 32);
 		DockLayoutPanel centerPanel = new DockLayoutPanel(Unit.PX);
 		panel.add(centerPanel);
 		typeTree = new DblClckTree();
@@ -250,7 +242,9 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 			});
 		} else {
 			int tabIndex = tabMap.size();
-			KidlWebEditorTab tab = new KidlWebEditorTab(this, moduleName, token, jsServices, typeName, isNew);
+			boolean readOnly = !ownedModules.contains(moduleName);
+			KidlWebEditorTab tab = new KidlWebEditorTab(this, moduleName, token, jsServices, 
+			        typeName, isNew, readOnly);
 			tabMap.put(moduleName, tab);
 			tabIndexMap.put(moduleName, tabIndex);
 			tabPanel.add(tab, moduleName);
@@ -314,8 +308,49 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		return new SafeHtmlBuilder().appendEscaped(html).toSafeHtml().asString();
 	}
 	
+	private String getUser() {
+        String user = null;
+        if (token != null) {
+            for (String part : token.split("\\|")) {
+                String[] keyVal = part.split("\\=");
+                if (keyVal == null || keyVal.length != 2)
+                    continue;
+                if (keyVal[0].equals("un"))
+                    user = keyVal[1];
+            }
+        }
+        return user;
+	}
+	
 	private void listAllTypes(final Callback<Boolean, Boolean> callback) {
-		wsCall(jsServices, token, "list_all_types", "{\"with_empty_modules\": 0}", new Callback<JSO, String>() {
+	    ownedModules = new HashSet<String>();
+	    String user = getUser();
+	    if (user != null) {
+	        wsCall(jsServices, token, "list_modules", "{\"owner\": \"" + user + "\"}", new Callback<JSO, String>() {
+	            @Override
+	            public void onSuccess(JSO result) {
+                    lg("In list_modules");
+	                int size = result.length();
+	                for (int i = 0; i < size; i++) {
+	                    String module = result.getString(i);
+	                    lg(module);
+	                    ownedModules.add(module);
+	                }
+	                lg("Before listAllTypes");
+	                listAllTypes(ownedModules, callback);
+	            }
+	            public void onFailure(String reason) {
+	                lg(reason);
+	                callback.onFailure(true);
+	            }
+	        });
+	    } else {
+	        listAllTypes(ownedModules, callback);
+	    }
+	}
+
+	private void listAllTypes(Set<String> ownedModules, final Callback<Boolean, Boolean> callback) {
+	    wsCall(jsServices, token, "list_all_types", "{\"with_empty_modules\": 0}", new Callback<JSO, String>() {
 			@Override
 			public void onSuccess(JSO result) {
 				mod2type2ver = new TreeMap<String, Map<String, String>>();
@@ -346,7 +381,10 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 			return;
 		typeTree.removeItems();
 		for (final String mod : mod2type2ver.keySet()) {
-			DblClckTreeItem modTi = new DblClckTreeItem(new SafeHtmlBuilder().appendEscaped(mod).toSafeHtml()) {
+		    String modLabel = mod;
+		    if (ownedModules.contains(mod))
+		        modLabel += " (owned)";
+			DblClckTreeItem modTi = new DblClckTreeItem(new SafeHtmlBuilder().appendEscaped(modLabel).toSafeHtml()) {
 				@Override
 				public void onDoubleClick() {
 					openTab(mod, null, false);
@@ -646,11 +684,11 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 	}
 
 	public native void wsCall2(JavaScriptObject jsServices, String wsUrl, String authToken, String method, Object param, Callback<JSO, String> callback) /*-{
-		var kbws = jsServices['kbws'];
-		if (!kbws) {
-			kbws = new $wnd.Workspace(wsUrl, {token: authToken});
-			jsServices['kbws'] = kbws;
-		}
+        var kbws = jsServices['kbws'];
+        if (!kbws) {
+            kbws = new $wnd.Workspace(wsUrl, {token: authToken});
+            jsServices['kbws'] = kbws;
+        }
 		kbws[method](param, function(data) {
 			if (typeof data === "boolean" || typeof data === "number" || typeof data === "string")
 				data = {data: data};
@@ -659,7 +697,159 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 			callback.@com.google.gwt.core.client.Callback::onFailure(Ljava/lang/Object;) (data.error.error);
 		});
 	}-*/;
-	
+
+    public void undo() {
+        KidlWebEditorTab tab = getSelectedTab();
+        if (tab != null)
+            tab.getAceEditor().undo();
+        focus();
+    }
+
+    public void redo() {
+        KidlWebEditorTab tab = getSelectedTab();
+        if (tab != null)
+            tab.getAceEditor().redo();
+        focus();
+    }
+
+    public void autocomplete() {
+        KidlWebEditorTab tab = getSelectedTab();
+        if (tab != null)
+            tab.getAceEditor().autocomplete();
+        focus();
+    }
+
+    public void find() {
+        KidlWebEditorTab tab = getSelectedTab();
+        if (tab != null)
+            tab.getAceEditor().openFind();
+        focus();
+    }
+
+    public void logIn() {
+        final DialogBox dialogBox = new DialogBox();
+        dialogBox.getElement().getStyle().setZIndex(10000);
+        dialogBox.setText("Log In");
+        dialogBox.setAnimationEnabled(true);
+        FlowPanel main = new FlowPanel();
+        dialogBox.setWidget(main);
+        main.add(new HTML("User name: "));
+        final TextBox tb1 = new TextBox();
+        //tb1.setValue();
+        tb1.getElement().getStyle().setDisplay(Display.BLOCK);
+        tb1.getElement().getStyle().setWidth(300, Unit.PX);
+        main.add(tb1);
+        main.add(new HTML("<br>"));
+        main.add(new HTML("Password: "));
+        final TextBox tb2 = new PasswordTextBox();
+        //tb2.setValue();
+        tb2.getElement().getStyle().setDisplay(Display.BLOCK);
+        tb2.getElement().getStyle().setWidth(300, Unit.PX);
+        main.add(tb2);
+        main.add(new HTML("<br>"));
+        final Button logButton = new Button("Log In");
+        logButton.getElement().setAttribute("style", "margin: 15px 6px 6px;");
+        main.add(logButton);
+        logButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                String loginName = tb1.getValue();
+                if (loginName == null || loginName.trim().isEmpty()) {
+                    Window.alert("Login can not be empty.");
+                    return;
+                }
+                gwtService.login(tb1.getValue(), tb2.getValue(), new AsyncCallback<String>() {
+                    @Override
+                    public void onSuccess(String result) {
+                        KidlWebEditorPanel.this.token = result;
+                        KidlWebEditorPanel.this.jsServices.removeAllKeys();
+                        listAllTypes(new Callback<Boolean, Boolean>() {
+                            @Override
+                            public void onSuccess(Boolean result) {
+                                dialogBox.hide();
+                                focus();
+                            }
+                            @Override
+                            public void onFailure(Boolean reason) {
+                                Window.alert("Login error");
+                            }
+                        });
+                    }
+                    @Override
+                    public void onFailure(Throwable caught) {
+                        Window.alert("Login error: " + caught.getMessage());
+                    }
+                });
+            }
+        });
+        final Button cancelButton = new Button("Cancel", new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                dialogBox.hide();
+                focus();
+            }
+        });
+        main.add(cancelButton);
+        dialogBox.center();
+        dialogBox.show();
+    }
+    
+    public void keyboardShortcuts() {
+        KidlWebEditorTab tab = getSelectedTab();
+        if (tab != null)
+            tab.getAceEditor().showKeyboardShortcuts();
+        focus();
+    }
+
+    public MenuBar createMenu() {
+        final KidlWebEditorPanel mainPanel = this;
+        MenuBar menu = new MenuBar();
+        MenuBar sysMenu = new MenuBar(true);
+        menu.addItem("System", sysMenu);
+        sysMenu.addItem("Log In", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.logIn();
+            }
+        });
+        MenuBar regMenu = new MenuBar(true);
+        menu.addItem("Registration", regMenu);
+        MenuBar edtMenu = new MenuBar(true);
+        menu.addItem("Edit", edtMenu);
+        edtMenu.addItem("Undo", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.undo();
+            }
+        });
+        edtMenu.addItem("Redo", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.redo();
+            }
+        });
+        edtMenu.addItem("Autocomplete", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.autocomplete();
+            }
+        });
+        edtMenu.addItem("Find", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.find();
+            }
+        });
+        MenuBar hlpMenu = new MenuBar(true);
+        menu.addItem("Help", hlpMenu);
+        hlpMenu.addItem("Keyboard shortcuts", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.keyboardShortcuts();
+            }
+        });
+        return menu;
+    }
+    
 	public static class DblClckTree extends Tree {
 		public DblClckTree() {
 	        sinkEvents(Event.ONDBLCLICK);

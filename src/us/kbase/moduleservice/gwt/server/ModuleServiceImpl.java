@@ -1,6 +1,7 @@
 package us.kbase.moduleservice.gwt.server;
 
-import us.kbase.moduleservice.gwt.client.GreetingService;
+import us.kbase.auth.AuthService;
+import us.kbase.moduleservice.gwt.client.ModuleService;
 import us.kbase.moduleservice.gwt.shared.FieldVerifier;
 import com.google.gwt.user.server.rpc.RemoteServiceServlet;
 
@@ -8,9 +9,13 @@ import com.google.gwt.user.server.rpc.RemoteServiceServlet;
  * The server side implementation of the RPC service.
  */
 @SuppressWarnings("serial")
-public class GreetingServiceImpl extends RemoteServiceServlet implements
-        GreetingService {
+public class ModuleServiceImpl extends RemoteServiceServlet implements
+        ModuleService {
 
+    public String login(String user, String passwd) throws Exception {
+        return AuthService.login(user, passwd).getTokenString();
+    }
+    
     public String greetServer(String input) throws IllegalArgumentException {
         // Verify that the input is valid. 
         if (!FieldVerifier.isValidName(input)) {

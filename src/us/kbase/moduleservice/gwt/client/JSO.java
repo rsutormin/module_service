@@ -20,7 +20,8 @@ public class JSO extends JavaScriptObject {
     public final native JSO keys() /*-{
 		var ret = [];
 		for (var key in this)
-			ret.push(key);
+		    if (this.hasOwnProperty(key))
+			    ret.push(key);
 		return ret;
 	}-*/;
     public final native JSO get(int i) /*-{
@@ -73,6 +74,17 @@ public class JSO extends JavaScriptObject {
     public final native void put(String key, double value) /*-{
 		return this[key] = value;
 	}-*/;
+    public final native void remove(String key) /*-{
+        delete this[key];
+    }-*/;
+    public final native void clearArray() /*-{
+        this.length = 0;
+    }-*/;
+    public final native void removeAllKeys() /*-{
+        for (var key in this)
+            if (this.hasOwnProperty(key))
+                delete this[key];
+    }-*/;
 
     public static final native JSO newArray() /*-{
     	return [];

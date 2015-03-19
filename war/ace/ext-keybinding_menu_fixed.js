@@ -140,7 +140,7 @@ module.exports.getEditorKeybordShortcuts = function(editor) {
 });
 
 define("ace/ext/keybinding_menu",["require","exports","module","ace/editor","ace/ext/menu_tools/overlay_page","ace/ext/menu_tools/get_editor_keyboard_shortcuts"], function(require, exports, module) {
-    "use strict";
+"use strict";
     var Editor = require("ace/editor").Editor;
     function showKeyboardShortcuts (editor) {
         if(!document.getElementById('kbshortcutmenu')) {
@@ -159,6 +159,11 @@ define("ace/ext/keybinding_menu",["require","exports","module","ace/editor","ace
             overlayPage(editor, el, '0', '0', '0', null);
         }
     };
+////////////////////// Changed by Roman Sutormin ///////////////////////
+    module.exports.showKeyboardShortcuts = function(editor) {
+        showKeyboardShortcuts(editor);
+    };
+///////////////////////////// End of change /////////////////////////////
     module.exports.init = function(editor) {
         Editor.prototype.showKeyboardShortcuts = function() {
             showKeyboardShortcuts(this);
@@ -171,7 +176,6 @@ define("ace/ext/keybinding_menu",["require","exports","module","ace/editor","ace
             }
         }]);
     };
-
 });
 ;
                 (function() {

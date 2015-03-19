@@ -38,6 +38,7 @@ import edu.ycp.cs.dh.acegwt.client.ace.AceEditorTheme;
 
 public class KidlWebEditorTab extends DockLayoutPanel {
 	private final KidlWebEditorPanel parent;
+	private String moduleName = null;
 	private final String token;
 	private AceEditor ta = null;
 	private final JavaScriptObject jsServices;
@@ -47,19 +48,14 @@ public class KidlWebEditorTab extends DockLayoutPanel {
 	private Map<String, KbModule> localModules = null;
 
 	public KidlWebEditorTab(final KidlWebEditorPanel parent, final String moduleName, String token, 
-			JavaScriptObject jsServices, final String typeToShow, boolean isNew) {
+			JavaScriptObject jsServices, final String typeToShow, boolean isNew, final boolean readOnly) {
 		super(Unit.PX);
 		this.parent = parent;
-		//this.moduleName = moduleName;
+		this.moduleName = moduleName;
 		this.token = token;
 		this.jsServices = jsServices;
 		ta = new AceEditor();
 		this.add(ta);
-		//RootPanel rp = parent.getRootPanel();
-		//int w = rp.getElement().getClientWidth() - 200 - 11;
-		//int h = rp.getElement().getClientHeight() - 70 - 70 - 11 - 25;
-		//ta.setWidth(w + "px");
-		//ta.setHeight(h + "px");
 		ta.startEditor(); // must be called before calling setTheme/setMode/etc.
 		ta.setTheme(AceEditorTheme.ECLIPSE);
 		ta.setModeByName("kidl");
@@ -157,7 +153,7 @@ public class KidlWebEditorTab extends DockLayoutPanel {
 				public void onSuccess(JSO result) {
 					String spec = (String)result.getString("spec");
 					ta.setText(spec);
-					ta.setReadOnly(false);
+					ta.setReadOnly(readOnly);
 					parseSpec();
 					ta.addOnChangeHandler(new AceEditorCallback() {
 						@Override
