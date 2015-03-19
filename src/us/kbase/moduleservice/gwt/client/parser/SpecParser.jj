@@ -1,0 +1,484 @@
+options{
+    IGNORE_CASE = false;
+    STATIC = false;
+    UNICODE_INPUT = true;
+    JAVA_TEMPLATE_TYPE = "modern";
+}
+
+PARSER_BEGIN(SpecParser)
+
+package us.kbase.moduleservice.gwt.client.parser;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * Do not change this file. It's automatically generated based on src/kbase/moduleservice/gwt/client/parser/SpecParser.jj
+ * using shell script in javacc/spec_javacc.sh . So please change parsing syntax and semantics
+ * in SpecParser.jj .
+ * @author rsutormin
+ */
+@SuppressWarnings({"unused", "serial"})
+public class SpecParser {
+	static String lastComment = null;
+	static Integer lastCommentEndLine = null;
+  
+    public CustomParseException generateParseException(KidlParseException t) throws ParseException {
+    	return generateParseException(t.getMessage());
+    }
+
+    public CustomParseException generateParseException(String message) throws ParseException {
+    	return new CustomParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message, token);
+    }
+
+    public String getLastComment(Token first) {
+    	String comment = lastComment;
+    	lastComment = null;
+    	if (comment == null)
+    		return "";
+    	//if (first.beginLine > lastCommentEndLine + 1)
+    	//	return "";
+    	return Utils.trim(comment);
+    }
+    
+    public void addTypedefToken(ModuleTokens mt, String type, Token first, Token last) {
+    	int startRow = first.beginLine - 1;
+    	int startCol = first.beginColumn - 1;
+    	int endRow = last.beginLine - 1;
+    	int endCol = last.beginColumn - 1;
+    	mt.typedefToRowCol.put(type, new int[] {startRow, startCol, endRow, endCol});
+    }
+
+    public void addModuleUsageToken(ModuleTokens mt, Token t) {
+    	addUsageToken(mt, t, new String[] { t.toString() });
+    }
+
+    public void addTypeUsageToken(ModuleTokens mt, String module, Token t) {
+    	addUsageToken(mt, t, new String[] { module, t.toString() });
+    }
+    
+    public void addUsageToken(ModuleTokens mt, Token t, String[] value) {
+    	int row = t.beginLine - 1;
+    	int col = t.beginColumn - 1;
+    	Map<Integer, String[]> colToInfo = mt.rowToColToModuleType.get(row);
+    	if (colToInfo == null) {
+    		colToInfo = new TreeMap<Integer, String[]>();
+    		mt.rowToColToModuleType.put(row, colToInfo);
+    	}
+    	colToInfo.put(col, value);
+    }
+    
+    public void checkTokenAlternative(CustomParseException ex, String prefix, String alt) {
+    	if (alt.startsWith(prefix))
+    		ex.getAltKeywords().add(alt);
+    }
+}
+
+PARSER_END(SpecParser)
+
+
+SKIP:
+{
+    " "
+|   "\t"
+|   "\r"
+|   "\n"
+|   "/*" : WithinComment
+}
+
+<WithinComment> SKIP :
+{
+  "*/"
+  {
+    SpecParser.lastComment = "/*" + image;
+    SpecParser.lastCommentEndLine = input_stream.line;
+  }
+  : DEFAULT
+}
+
+<WithinComment> MORE :
+{
+  <~[]>
+}
+
+
+TOKEN: 
+{
+    <T_include:"#include">
+|   <T_module:"module">
+|   <T_auth:"authentication">
+|   <T_required:"required">
+|   <T_optional:"optional">
+|   <T_none:"none">
+|   <T_typedef:"typedef">
+|   <T_funcdef:"funcdef">
+|   <T_string:"string">
+|   <T_int:"int">
+|   <T_float:"float">
+|   <T_unobj:"UnspecifiedObject">
+|   <T_list:"list">
+|   <T_mapping:"mapping">
+|   <T_structure:"structure">
+|   <T_tuple:"tuple">
+|   <T_returns:"returns">
+|   <T_round_open_bracket:"(">
+|   <T_round_close_bracket:")">
+|   <T_comma:",">
+|   <T_dot:".">
+|   <T_semicolon:";">
+|   <T_colon:":">
+|   <T_figure_open_bracket:"{">
+|   <T_figure_close_bracket:"}">
+}
+
+
+TOKEN:
+{
+    < S_IDENTIFIER: ( <LETTER> )+ ( <DIGIT> | <LETTER> |<SPECIAL_CHARS>)* >
+|   < #LETTER: ["a"-"z", "A"-"Z"] >
+|   < #DIGIT: ["0" - "9"] >
+|   < #SPECIAL_CHARS: "$" | "_" | "-">
+|   < INCLUDE_LITERAL: "#include" ([" ", "\t"])* "<" (~[">"])* ">">
+}
+
+/**
+ * Main parsing method. It iterates over includes and after that over modules.
+ */
+Map<String, KbModule> SpecStatement(IncludeProvider ip, ModuleTokens mt):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> includes = null;
+}
+{
+  { lastComment = null; }
+  includes = IncludeList(ip, mt)
+  ret = ModuleList(includes, mt)
+  <EOF>
+  { return ret; }
+}
+
+/**
+ * Method iterates over includes.
+ */
+Map<String, KbModule> IncludeList(IncludeProvider ip, ModuleTokens mt):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> added = null;
+  String includeLine = null;
+}
+{
+  (
+    added = Include(ip, mt)
+    { ret.putAll(added); }
+  )*
+  { return ret; }
+}
+
+/**
+ * Method parses one include line.
+ */
+Map<String, KbModule> Include(IncludeProvider ip, ModuleTokens mt):
+{
+  Token pathToken;
+}
+{
+  pathToken = <INCLUDE_LITERAL>
+  {
+  	try {
+  	    addModuleUsageToken(mt, pathToken);
+	    return ip.parseInclude(pathToken.toString()); 
+	} catch (KidlParseException ex) {
+		throw generateParseException(ex);
+	}
+	return null;
+  }
+}
+
+/**
+ * Method iterates over modules.
+ */
+Map<String, KbModule> ModuleList(Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  KbModule module = null;
+}
+{
+  (
+    module = Module(includes, mt)
+    { 
+      ret.put(module.getModuleName(), module); 
+      includes.put(module.getModuleName(), module);
+    }
+  )*
+  { return ret; }
+}
+
+/**
+ * Method parses one module. So it iterates over module components (typedefs, funcdefs and auths).
+ * They are separated by semicolon.
+ */
+KbModule Module(Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token first = null;
+  KbModule ret = null;
+  String comment = null;
+  Token srvToken = null;
+  Token nameToken = null;
+}
+{
+  first = "module"
+  {
+	comment = getLastComment(first);
+  }
+  [
+    LOOKAHEAD (<S_IDENTIFIER> ":")
+    srvToken = <S_IDENTIFIER>
+    ":"
+  ]
+  nameToken = <S_IDENTIFIER>
+  { ret = new KbModule(nameToken.toString(), comment); }
+  "{"
+  (
+    (
+      (
+        Typedef(ret, includes, mt)
+      )
+      |
+      (
+        Funcdef(ret, includes, mt)
+      )
+	  |
+	  (
+		Auth()
+	  )
+	)
+	";"
+    {
+      lastComment = null;
+      //ret.addModuleComponent(comp);
+    }
+  )*
+  "}"
+  ";"
+  { return ret; }
+}
+
+/**
+ * Method parses type definition (one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef).
+ */
+void Typedef(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token first;
+  String comment;
+  Token name;
+}
+{
+  first = "typedef"
+  {
+	comment = getLastComment(first);
+  }
+  Type(curModule, includes, mt)
+  name = <S_IDENTIFIER>
+  { 
+  	curModule.getTypeToDoc().put(name.toString(), comment);
+	addTypedefToken(mt, name.toString(), first, name);  	
+  }
+}
+
+/**
+ * Method parses nameless type definition which can be used in typedefs, funcdefs and as part of 
+ * another type. This type can be one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef). Structure can't be type of funcdef parameter or part of another type. 
+ */
+void Type(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token t = null;
+  Token moduleToken = null;
+  Token typeToken = null;
+}
+{
+  (
+  	(
+  	  t = "string"
+  	)
+	| 
+  	(
+  	  t = "int"
+  	)
+	| 
+  	(
+  	  t = "float"
+  	)
+	| 
+  	(
+  	  t = "UnspecifiedObject"
+  	)
+	| 
+    (
+      t = "list" "<" Type(curModule, includes, mt) ">"
+    )
+  	|
+  	(
+  	  t = "mapping" "<" Type(curModule, includes, mt) [<S_IDENTIFIER>] "," 
+  	  Type(curModule, includes, mt) [<S_IDENTIFIER>] ">"
+  	)
+  	|
+  	(
+  	  t = "tuple"
+  	  "<" OptNameParam(curModule, includes, mt)
+  	  (
+  	  	"," OptNameParam(curModule, includes, mt)
+  	  )* ">"
+  	)
+	|
+	(
+	  t = "structure"
+	  "{"
+	  (
+		  StructItem(curModule, includes, mt) ";"
+	  )*
+	  "}"
+	)
+	|
+	(
+      typeToken = <S_IDENTIFIER>
+	  [
+    	"."
+    	{ moduleToken = typeToken; }
+		typeToken = <S_IDENTIFIER>
+  	  ]
+      {
+    	String module = moduleToken == null ? null : moduleToken.toString();
+    	KbModule refModule = null;
+    	if (module == null || module.equals(curModule.getModuleName())) {
+    		refModule = curModule;
+    	} else {
+    		refModule = includes.get(module);
+    		if (refModule == null)
+    			throw generateParseException("Can not find module \"" + module + "\", please use #include<module> at the top");
+    	    addModuleUsageToken(mt, moduleToken);
+    	}
+    	String type = typeToken.toString();
+    	String doc = refModule.getTypeToDoc().get(type);
+    	if (doc == null) {
+    		CustomParseException ex = generateParseException("Can not find type \"" + (module == null ? "" : (module + ".")) + type + "\", please make sure it was registered");
+    		if (module == null)  {
+    			checkTokenAlternative(ex, type, "string");
+    			checkTokenAlternative(ex, type, "int");
+    			checkTokenAlternative(ex, type, "float");
+    			checkTokenAlternative(ex, type, "UnspecifiedObject");
+    			checkTokenAlternative(ex, type, "list");
+    			checkTokenAlternative(ex, type, "mapping");
+    			checkTokenAlternative(ex, type, "tuple");
+    			checkTokenAlternative(ex, type, "structure");
+	    		for (String mod : includes.keySet()) {
+    				if (mod.startsWith(type))
+	    				ex.getAltModules().add(mod);
+    			}
+    		}
+    		for (String tp : refModule.getTypeToDoc().keySet()) {
+    			if (tp.startsWith(type))
+	    			ex.getAltTypes().add(tp);
+    		}
+    		throw ex;
+    	}
+    	addTypeUsageToken(mt, refModule.getModuleName(), typeToken);
+      }
+	)
+  )
+}
+
+/**
+ * Element of structure. They are separated by semicolon.
+ */
+void StructItem(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token name;
+}
+{
+  Type(curModule, includes, mt)
+  name = <S_IDENTIFIER>
+}
+
+void Auth():
+{
+  Token t;
+}
+{
+  "authentication"
+  (
+ 	(
+		t = "required"
+  	)
+    |
+    (
+	  t = "optional"
+    )
+    |
+    (
+	  t = "none"
+    )
+  )
+}
+
+/**
+ * Method parses function definition.
+ */
+void Funcdef(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token first;
+  String comment = null;
+  Token name;
+}
+{
+  first = "funcdef"
+  {
+	comment = getLastComment(first);
+  }
+  name = <S_IDENTIFIER>
+  "("
+  OptNameParams(curModule, includes, mt)
+  ")"
+  "returns"
+  "("
+  OptNameParams(curModule, includes, mt)
+  ")"
+  [
+  	Auth() 
+  ]
+}
+
+/**
+ * Method parses input or return parameters of function and elements of tuple.
+ */
+void OptNameParams(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+}
+{
+  [
+  	OptNameParam(curModule, includes, mt)
+    (
+      ","
+  	  OptNameParam(curModule, includes, mt)
+    )*
+  ]
+}
+
+/**
+ * Method parses one input or return parameter of function and one element of tuple.
+ */
+void OptNameParam(KbModule curModule, Map<String, KbModule> includes, ModuleTokens mt):
+{
+  Token nameToken;
+  String name = null;
+}
+{
+  Type(curModule, includes, mt)
+  [ nameToken = <S_IDENTIFIER>
+    { name = nameToken.toString(); }
+  ]
+}
