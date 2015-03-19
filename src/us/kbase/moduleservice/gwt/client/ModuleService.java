@@ -1,5 +1,7 @@
 package us.kbase.moduleservice.gwt.client;
 
+import java.util.Map;
+
 import com.google.gwt.user.client.rpc.RemoteService;
 import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
 
@@ -9,5 +11,5 @@ import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
 @RemoteServiceRelativePath("gwt")
 public interface ModuleService extends RemoteService {
     String login(String user, String passwd) throws Exception;
-    String greetServer(String name) throws IllegalArgumentException;
+    Map<String, String> getConfig() throws Exception;
 }

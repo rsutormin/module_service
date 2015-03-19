@@ -63,7 +63,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 	private ScrolledTabLayoutPanel tabPanel = null;
 	private Map<String, KidlWebEditorTab> tabMap = new TreeMap<String, KidlWebEditorTab>();
 	private Map<String, Integer> tabIndexMap = new TreeMap<String, Integer>();
-	private String wsUrl = "https://kbase.us/services/ws";
+	private String wsUrl = null;
     private final ModuleServiceAsync gwtService = GWT
             .create(ModuleService.class);
 
@@ -71,106 +71,36 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 			final String typeName, final String wsUrlInput) {
 	    super(Unit.PX);
 		this.token = token;
-		if (wsUrlInput != null)
-			this.wsUrl = wsUrlInput;
+		this.wsUrl = wsUrlInput;
 
+		DockLayoutPanel menuPanel = new DockLayoutPanel(Unit.PX);
+		
 		FlowPanel upper = new FlowPanel();
 		upper.getElement().getStyle().setProperty("border", "1px solid #ccc");
 
-		Button create = new Button("C", new ClickHandler() {
+		Button goBack = new Button("B", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				openNewModuleDialog();
+                Window.alert("This function is not yet supported");
 			}
 		});
-		create.getElement().getStyle().setHeight(30, Unit.PX);
-		create.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(create);
-		TooltipListener.addFor(create, "Create new module", 5000);
-		Button reg = new Button("E", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				openRegisterModuleDialog();
-			}
-		});
-		reg.getElement().getStyle().setHeight(30, Unit.PX);
-		reg.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(reg);
-		TooltipListener.addFor(reg, "Register current module", 5000);
-		Button rel = new Button("L", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				openReleaseModuleDialog();
-			}
-		});
-		rel.getElement().getStyle().setHeight(30, Unit.PX);
-		rel.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(rel);
-		TooltipListener.addFor(rel, "Release current module", 5000);
-		Button undo = new Button("U", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				undo();
-			}
-		});
-		undo.getElement().getStyle().setHeight(30, Unit.PX);
-		undo.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(undo);
-		TooltipListener.addFor(undo, "Undo (see keyboard shortcuts)", 5000);
-		Button redo = new Button("R", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				redo();
-			}
-		});
-		redo.getElement().getStyle().setHeight(30, Unit.PX);
-		redo.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(redo);
-		TooltipListener.addFor(redo, "Redo (see keyboard shortcuts)", 5000);
-		Button auto = new Button("A", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				autocomplete();
-			}
-		});
-		auto.getElement().getStyle().setHeight(30, Unit.PX);
-		auto.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(auto);
-		TooltipListener.addFor(auto, "Autocomplete (see keyboard shortcuts)", 5000);
-		Button find = new Button("F", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				find();
-			}
-		});
-		find.getElement().getStyle().setHeight(30, Unit.PX);
-		find.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(find);
-		TooltipListener.addFor(find, "Find (see keyboard shortcuts)", 5000);
-		Button bind = new Button("K", new ClickHandler() {
-			@Override
-			public void onClick(ClickEvent event) {
-				keyboardShortcuts();
-			}
-		});
-		bind.getElement().getStyle().setHeight(30, Unit.PX);
-		bind.getElement().getStyle().setWidth(30, Unit.PX);
-		upper.add(bind);
-		TooltipListener.addFor(bind, "Keyboard shortcuts", 5000);
+		goBack.getElement().getStyle().setHeight(30, Unit.PX);
+		goBack.getElement().getStyle().setWidth(30, Unit.PX);
+		TooltipListener.addFor(goBack, "Go back", 5000);
+		upper.add(goBack);
 
-		DockLayoutPanel panel = this;  //new DockLayoutPanel(Unit.PX);
-		//rootPanel.add(panel);
-		//panel.setHeight(rootPanel.getElement().getClientHeight() + "px");
-		panel.getElement().getStyle().setOverflow(Overflow.HIDDEN);
-		panel.getElement().getStyle().setPosition(Position.ABSOLUTE);
-		panel.getElement().getStyle().setLeft(0, Unit.PX);
-		panel.getElement().getStyle().setTop(0, Unit.PX);
-		panel.getElement().getStyle().setRight(0, Unit.PX);
-		panel.getElement().getStyle().setBottom(0, Unit.PX);
-		//position: absolute; overflow: hidden; left: 0px; top: 32px; right: 0px; bottom: 0px;
-		panel.addNorth(createMenu(), 32);
+        menuPanel.addEast(upper, 32);
+	    menuPanel.add(createMenu());
+
+		this.getElement().getStyle().setOverflow(Overflow.HIDDEN);
+		this.getElement().getStyle().setPosition(Position.ABSOLUTE);
+		this.getElement().getStyle().setLeft(0, Unit.PX);
+		this.getElement().getStyle().setTop(0, Unit.PX);
+		this.getElement().getStyle().setRight(0, Unit.PX);
+		this.getElement().getStyle().setBottom(0, Unit.PX);
+		this.addNorth(menuPanel, 32);
 		DockLayoutPanel centerPanel = new DockLayoutPanel(Unit.PX);
-		panel.add(centerPanel);
+		this.add(centerPanel);
 		typeTree = new DblClckTree();
 		ScrollPanel sp = new ScrollPanel(typeTree); 
 		centerPanel.addEast(sp, 200);
@@ -813,6 +743,24 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         });
         MenuBar regMenu = new MenuBar(true);
         menu.addItem("Registration", regMenu);
+        regMenu.addItem("Create new module", new Command() {
+            @Override
+            public void execute() {
+                openNewModuleDialog();
+            }
+        });
+        regMenu.addItem("Register current module", new Command() {
+            @Override
+            public void execute() {
+                openRegisterModuleDialog();
+            }
+        });
+        regMenu.addItem("Release current module", new Command() {
+            @Override
+            public void execute() {
+                openReleaseModuleDialog();
+            }
+        });
         MenuBar edtMenu = new MenuBar(true);
         menu.addItem("Edit", edtMenu);
         edtMenu.addItem("Undo", new Command() {
@@ -837,6 +785,14 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
             @Override
             public void execute() {
                 mainPanel.find();
+            }
+        });
+        MenuBar mdlMenu = new MenuBar(true);
+        menu.addItem("Module", mdlMenu);
+        mdlMenu.addItem("Generate client/servers", new Command() {
+            @Override
+            public void execute() {
+                Window.alert("This function is not yet supported");
             }
         });
         MenuBar hlpMenu = new MenuBar(true);

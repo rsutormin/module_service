@@ -1,5 +1,7 @@
 package us.kbase.moduleservice.gwt.client;
 
+import java.util.Map;
+
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
 /**
@@ -8,6 +10,5 @@ import com.google.gwt.user.client.rpc.AsyncCallback;
 public interface ModuleServiceAsync {
     void login(String user, String passwd, AsyncCallback<String> token);
 
-    void greetServer(String input, AsyncCallback<String> callback)
-            throws IllegalArgumentException;
+    void getConfig(AsyncCallback<Map<String, String>> callback);
 }

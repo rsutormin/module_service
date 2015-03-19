@@ -21,7 +21,7 @@
   <inherits name='edu.ycp.cs.dh.acegwt.AceGWT'/>
   
   <!-- Specify the app entry point class.                         -->
-  <entry-point class='us.kbase.moduleservice.gwt.client.Module_service'/>
+  <entry-point class='us.kbase.moduleservice.gwt.client.ModuleServiceEP'/>
 
   <!-- Specify the paths for translatable code                    -->
   <source path='client'/>
