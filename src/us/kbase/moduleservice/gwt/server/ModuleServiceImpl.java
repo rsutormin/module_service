@@ -21,4 +21,13 @@ public class ModuleServiceImpl extends RemoteServiceServlet implements
     public Map<String, String> getConfig() throws Exception {
         return DeployConfig.getConfig();
     }
+    
+    @Override
+    public boolean validateAuthToken(String token) {
+        try {
+            return AuthService.validateToken(token);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
 }

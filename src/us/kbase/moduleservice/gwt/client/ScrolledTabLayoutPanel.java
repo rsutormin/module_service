@@ -1,5 +1,6 @@
 package us.kbase.moduleservice.gwt.client;
 
+import com.google.gwt.dom.client.Style.Cursor;
 import com.google.gwt.dom.client.Style.Unit; 
 import com.google.gwt.dom.client.Style.VerticalAlign;
 import com.google.gwt.event.dom.client.ClickEvent; 
@@ -80,6 +81,7 @@ public class ScrolledTabLayoutPanel extends TabLayoutPanel {
                         afterTabWasClosed(child, text);
                     }
                 });
+                closeBtn.getElement().getStyle().setCursor(Cursor.POINTER);
                 hPanel.add(closeBtn);
                 super.add(child, hPanel);
             } else {

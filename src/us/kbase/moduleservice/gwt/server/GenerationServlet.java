@@ -2,7 +2,6 @@ package us.kbase.moduleservice.gwt.server;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
@@ -26,6 +25,7 @@ import us.kbase.kidl.KidlParseException;
 import us.kbase.scripts.FileSaver;
 import us.kbase.scripts.ModuleBuilder;
 import us.kbase.scripts.NestedFileSaver;
+import us.kbase.scripts.OneFileSaver;
 import us.kbase.workspace.GetModuleInfoParams;
 import us.kbase.workspace.ModuleInfo;
 import us.kbase.workspace.WorkspaceClient;
@@ -45,13 +45,17 @@ public class GenerationServlet extends HttpServlet {
         try {
             String token = request.getParameter("token");
             String module = request.getParameter("module");
+            String verText = request.getParameter("ver");
             String wsUrl = DeployConfig.getConfig().get("ws.url");
             URL wsURL = new URL(wsUrl);
             WorkspaceClient cl = token == null ? new WorkspaceClient(wsURL) : new WorkspaceClient(wsURL, new AuthToken(token));
-            ModuleInfo mi = cl.getModuleInfo(new GetModuleInfoParams().withMod(module));
+            GetModuleInfoParams gmiParams = new GetModuleInfoParams().withMod(module);
+            if (verText != null)
+                gmiParams.setVer(Long.parseLong(verText));
+            ModuleInfo mi = cl.getModuleInfo(gmiParams);
             String spec = mi.getSpec();
             response.setContentType("application/octet-stream");
-            response.setHeader( "Content-Disposition", "attachment;filename=generated.zip");
+            response.setHeader( "Content-Disposition", "attachment;filename=" + module + "_generated.zip");
             OutputStream os = response.getOutputStream();
             final ZipOutputStream zos = new ZipOutputStream(os);
             FileSaver output = new FileSaver() {
@@ -104,28 +108,30 @@ public class GenerationServlet extends HttpServlet {
             };
 
             Reader specFile = new StringReader(spec);
-            String url = null;
-            boolean jsClientSide = true;
-            String jsClientName = null;
-            boolean perlClientSide = true;
-            String perlClientName = null;
-            boolean perlServerSide = false;
-            String perlServerName = null;
-            String perlImplName = null;
-            String perlPsgiName = null;
-            boolean perlEnableRetries = false;
-            boolean pyClientSide = true;
-            String pyClientName = null;
-            boolean pyServerSide = false;
-            String pyServerName = null;
-            String pyImplName = null; 
-            boolean javaClientSide = true;
-            boolean javaServerSide = false;
-            String javaPackageParent = "us.kbase";
-            FileSaver javaSrcDir = new NestedFileSaver(output, "src");
-            FileSaver javaLibDir = null;
-            FileSaver javaBuildXml = null;
-            String javaGwtPackage = null;
+            String url = request.getParameter("url");
+            boolean jsClientSide = bool(request.getParameter("js"));
+            String jsClientName = request.getParameter("jsclname");
+            boolean perlClientSide = bool(request.getParameter("perl"));
+            String perlClientName = request.getParameter("perlclname");
+            boolean perlServerSide = bool(request.getParameter("perlsrv"));
+            String perlServerName = request.getParameter("perlsrvname");
+            String perlImplName = request.getParameter("perlimplname");
+            String perlPsgiName = request.getParameter("perlpsginame");
+            boolean perlEnableRetries = bool(request.getParameter("perlenableretries"));
+            boolean pyClientSide = bool(request.getParameter("py"));
+            String pyClientName = request.getParameter("pyclname");
+            boolean pyServerSide = bool(request.getParameter("pysrv"));
+            String pyServerName = request.getParameter("pysrvname");
+            String pyImplName = request.getParameter("pyimplname"); 
+            boolean javaClientSide = bool(request.getParameter("java"));
+            boolean javaServerSide = bool(request.getParameter("javasrv"));
+            String javaPackageParent = param(request, "javapakage", "us.kbase");
+            FileSaver javaSrcDir = new NestedFileSaver(output, param(request, "javasrc", "src"));
+            FileSaver javaLibDir = request.getParameter("javalib") == null ? null :
+                new NestedFileSaver(output, request.getParameter("javalib"));
+            FileSaver javaBuildXml = request.getParameter("javabuildxml") == null ? null :
+                new OneFileSaver(output, request.getParameter("javabuildxml"));
+            String javaGwtPackage = request.getParameter("javagwt");
             boolean newStyle = true;
             IncludeProvider ip = new IncludeProvider() {
                 @Override
@@ -134,7 +140,8 @@ public class GenerationServlet extends HttpServlet {
                     return null;
                 }
             };
-            FileSaver jsonSchemas = null;
+            FileSaver jsonSchemas = request.getParameter("jsonschema") == null ? null :
+                new NestedFileSaver(output, request.getParameter("jsonschema"));
             
             ModuleBuilder.generate(specFile, url, jsClientSide, jsClientName, 
                     perlClientSide, perlClientName, perlServerSide, perlServerName, 
@@ -150,5 +157,14 @@ public class GenerationServlet extends HttpServlet {
         } catch (Exception ex) {
             throw new ServletException(ex);
         }
+    }
+    
+    private static boolean bool(String val) {
+        return val == null ? false : Boolean.parseBoolean(val);
+    }
+
+    private static String param(HttpServletRequest request, String name, String defVal) {
+        String ret = request.getParameter(name);
+        return ret == null ? defVal : ret;
     }
 }

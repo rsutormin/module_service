@@ -12,4 +12,5 @@ import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
 public interface ModuleService extends RemoteService {
     String login(String user, String passwd) throws Exception;
     Map<String, String> getConfig() throws Exception;
+    boolean validateAuthToken(String token);
 }

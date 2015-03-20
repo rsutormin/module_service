@@ -11,4 +11,6 @@ public interface ModuleServiceAsync {
     void login(String user, String passwd, AsyncCallback<String> token);
 
     void getConfig(AsyncCallback<Map<String, String>> callback);
+    
+    void validateAuthToken(String token, AsyncCallback<Boolean> callback);
 }

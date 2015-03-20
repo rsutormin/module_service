@@ -27,10 +27,10 @@ import com.google.gwt.event.logical.shared.SelectionHandler;
 import com.google.gwt.safehtml.shared.SafeHtml;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Cookies;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DialogBox;
@@ -38,8 +38,8 @@ import com.google.gwt.user.client.ui.DockLayoutPanel;
 import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.MenuBar;
-import com.google.gwt.user.client.ui.PasswordTextBox;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Tree;
@@ -64,21 +64,23 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 	private Map<String, KidlWebEditorTab> tabMap = new TreeMap<String, KidlWebEditorTab>();
 	private Map<String, Integer> tabIndexMap = new TreeMap<String, Integer>();
 	private String wsUrl = null;
-    private final ModuleServiceAsync gwtService = GWT
-            .create(ModuleService.class);
+    private final ModuleServiceAsync gwtService = GWT.create(ModuleService.class);
+    private final TextBox logged = new TextBox();
+    //
+    public static final String COOKIES_TOKEN_KEY = "module_service_auth_token";
 
 	public KidlWebEditorPanel(final String token, final String moduleName, 
 			final String typeName, final String wsUrlInput) {
 	    super(Unit.PX);
-		this.token = token;
+		this.setToken(token);
 		this.wsUrl = wsUrlInput;
 
 		DockLayoutPanel menuPanel = new DockLayoutPanel(Unit.PX);
 		
-		FlowPanel upper = new FlowPanel();
+		HorizontalPanel upper = new HorizontalPanel();
 		upper.getElement().getStyle().setProperty("border", "1px solid #ccc");
 
-		Button goBack = new Button("B", new ClickHandler() {
+		Button goBack = new Button("&#8678;", new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
                 Window.alert("This function is not yet supported");
@@ -86,10 +88,16 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		});
 		goBack.getElement().getStyle().setHeight(30, Unit.PX);
 		goBack.getElement().getStyle().setWidth(30, Unit.PX);
+        goBack.getElement().getStyle().setProperty("padding", "0px 0px");
+		goBack.getElement().getStyle().setFontSize(16, Unit.PX);
+		goBack.getElement().getStyle().setPaddingBottom(5, Unit.PX);
 		TooltipListener.addFor(goBack, "Go back", 5000);
 		upper.add(goBack);
+		logged.setReadOnly(true);
+		logged.setWidth("250px");
+		upper.add(logged);
 
-        menuPanel.addEast(upper, 32);
+        menuPanel.addEast(upper, 285);
 	    menuPanel.add(createMenu());
 
 		this.getElement().getStyle().setOverflow(Overflow.HIDDEN);
@@ -254,7 +262,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		return new SafeHtmlBuilder().appendEscaped(html).toSafeHtml().asString();
 	}
 	
-	private String getUser() {
+	public String getUser() {
         String user = null;
         if (token != null) {
             for (String part : token.split("\\|")) {
@@ -268,21 +276,18 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         return user;
 	}
 	
-	private void listAllTypes(final Callback<Boolean, Boolean> callback) {
+	public void listAllTypes(final Callback<Boolean, Boolean> callback) {
 	    ownedModules = new HashSet<String>();
 	    String user = getUser();
 	    if (user != null) {
 	        wsCall(jsServices, token, "list_modules", "{\"owner\": \"" + user + "\"}", new Callback<JSO, String>() {
 	            @Override
 	            public void onSuccess(JSO result) {
-                    lg("In list_modules");
 	                int size = result.length();
 	                for (int i = 0; i < size; i++) {
 	                    String module = result.getString(i);
-	                    lg(module);
 	                    ownedModules.add(module);
 	                }
-	                lg("Before listAllTypes");
 	                listAllTypes(ownedModules, callback);
 	            }
 	            public void onFailure(String reason) {
@@ -672,71 +677,39 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         focus();
     }
 
+    public void setToken(String token) {
+        this.token = token;
+        if (token != null) {
+            logged.setValue("You're logged in as [" + getUser() + "]");
+        } else {
+            logged.setValue("You're not logged in.");
+        }
+    }
+    
+    public JSO getJsServices() {
+        return jsServices;
+    }
+    
     public void logIn() {
-        final DialogBox dialogBox = new DialogBox();
-        dialogBox.getElement().getStyle().setZIndex(10000);
-        dialogBox.setText("Log In");
-        dialogBox.setAnimationEnabled(true);
-        FlowPanel main = new FlowPanel();
-        dialogBox.setWidget(main);
-        main.add(new HTML("User name: "));
-        final TextBox tb1 = new TextBox();
-        //tb1.setValue();
-        tb1.getElement().getStyle().setDisplay(Display.BLOCK);
-        tb1.getElement().getStyle().setWidth(300, Unit.PX);
-        main.add(tb1);
-        main.add(new HTML("<br>"));
-        main.add(new HTML("Password: "));
-        final TextBox tb2 = new PasswordTextBox();
-        //tb2.setValue();
-        tb2.getElement().getStyle().setDisplay(Display.BLOCK);
-        tb2.getElement().getStyle().setWidth(300, Unit.PX);
-        main.add(tb2);
-        main.add(new HTML("<br>"));
-        final Button logButton = new Button("Log In");
-        logButton.getElement().setAttribute("style", "margin: 15px 6px 6px;");
-        main.add(logButton);
-        logButton.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                String loginName = tb1.getValue();
-                if (loginName == null || loginName.trim().isEmpty()) {
-                    Window.alert("Login can not be empty.");
-                    return;
-                }
-                gwtService.login(tb1.getValue(), tb2.getValue(), new AsyncCallback<String>() {
-                    @Override
-                    public void onSuccess(String result) {
-                        KidlWebEditorPanel.this.token = result;
-                        KidlWebEditorPanel.this.jsServices.removeAllKeys();
-                        listAllTypes(new Callback<Boolean, Boolean>() {
-                            @Override
-                            public void onSuccess(Boolean result) {
-                                dialogBox.hide();
-                                focus();
-                            }
-                            @Override
-                            public void onFailure(Boolean reason) {
-                                Window.alert("Login error");
-                            }
-                        });
-                    }
-                    @Override
-                    public void onFailure(Throwable caught) {
-                        Window.alert("Login error: " + caught.getMessage());
-                    }
-                });
-            }
-        });
-        final Button cancelButton = new Button("Cancel", new ClickHandler() {
+        new LoginDialog(this, gwtService);
+    }
+
+    public void logOut() {
+        setToken(null);
+        Cookies.removeCookie(KidlWebEditorPanel.COOKIES_TOKEN_KEY);
+        getJsServices().removeAllKeys();
+        listAllTypes(new Callback<Boolean, Boolean>() {
             @Override
-            public void onClick(ClickEvent event) {
-                dialogBox.hide();
-                focus();
+            public void onSuccess(Boolean result) {}
+            @Override
+            public void onFailure(Boolean reason) {
+                Window.alert("Login error");
             }
         });
-        main.add(cancelButton);
-        dialogBox.center();
-        dialogBox.show();
+    }
+
+    public TextBox getLoggedTextBox() {
+        return logged;
     }
     
     public void keyboardShortcuts() {
@@ -746,11 +719,11 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         focus();
     }
 
-    public static native void downloadFile(String url) /*-{
-        console.log("Downloading url=" + url);
+    public native void downloadFile(String url) /*-{
+        //console.log("Downloading url=" + url);
         var hiddenIFrameID = 'hiddenDownloader';
         var iframe = $doc.getElementById(hiddenIFrameID);
-        if (iframe === null) {
+        if (!iframe) {
             iframe = $doc.createElement('iframe');
             iframe.id = hiddenIFrameID;
             iframe.style.display = 'none';
@@ -768,6 +741,12 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
             @Override
             public void execute() {
                 mainPanel.logIn();
+            }
+        });
+        sysMenu.addItem("Log Out", new Command() {
+            @Override
+            public void execute() {
+                mainPanel.logOut();
             }
         });
         MenuBar regMenu = new MenuBar(true);
@@ -825,7 +804,7 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
                 if (moduleName == null) {
                     Window.alert("Module is not selected");
                 } else {
-                    downloadFile("generate?module=" + moduleName);
+                    new GenerateDialog(KidlWebEditorPanel.this, token, moduleName, gwtService);
                 }
             }
         });
