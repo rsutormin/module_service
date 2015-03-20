@@ -1,16 +1,21 @@
 package us.kbase.moduleservice.gwt.client;
 
 import com.google.gwt.dom.client.Style.Unit; 
+import com.google.gwt.dom.client.Style.VerticalAlign;
 import com.google.gwt.event.dom.client.ClickEvent; 
 import com.google.gwt.event.dom.client.ClickHandler; 
 import com.google.gwt.event.logical.shared.ResizeEvent; 
 import com.google.gwt.event.logical.shared.ResizeHandler; 
 import com.google.gwt.event.shared.HandlerRegistration; 
 import com.google.gwt.user.client.Command; 
+import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.DeferredCommand; 
 import com.google.gwt.user.client.Window; 
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlowPanel; 
+import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.LayoutPanel; 
 import com.google.gwt.user.client.ui.TabLayoutPanel; 
 import com.google.gwt.user.client.ui.Widget; 
@@ -52,7 +57,41 @@ public class ScrolledTabLayoutPanel extends TabLayoutPanel {
         	super.add(child, text);
         	checkIfScrollButtonsNecessary();
         }
+
+        public void add(final Widget child, final String text, boolean closable) {
+            if (closable) {
+                HorizontalPanel hPanel = new HorizontalPanel();
+                hPanel.getElement().getStyle().setProperty("marginBottom", "-2px");
+                final Label label = new Label(text);
+                DOM.setStyleAttribute(label.getElement(), "whiteSpace", "nowrap");
+                hPanel.add(label);
+                hPanel.add(new HTML("&nbsp;"));
+                HTML closeBtn = new HTML("&#10006;");
+                closeBtn.addClickHandler(new ClickHandler() { 
+                    @Override 
+                    public void onClick(ClickEvent event) {
+                        int widgetIndex = getWidgetIndex(child);
+                        if (widgetIndex == getSelectedIndex()) {
+                            int selInd = widgetIndex + 1 == getWidgetCount() ? (widgetIndex - 1) : (widgetIndex + 1);
+                            if (selInd >= 0)
+                                selectTab(selInd);
+                        }
+                        remove(widgetIndex);
+                        afterTabWasClosed(child, text);
+                    }
+                });
+                hPanel.add(closeBtn);
+                super.add(child, hPanel);
+            } else {
+                super.add(child, text);
+            }
+            checkIfScrollButtonsNecessary();
+        }
         
+        public void afterTabWasClosed(Widget w, String text) {
+            // Method could be overwritten
+        }
+
         @Override 
         public void add(Widget child, Widget tab) { 
                 super.add(child, tab); 

@@ -106,7 +106,12 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 		centerPanel.addEast(sp, 200);
 		Style sps = sp.getElement().getStyle();
 		sps.setProperty("border", "1px solid #ccc");
-		tabPanel = new ScrolledTabLayoutPanel(25, Unit.PX);
+		tabPanel = new ScrolledTabLayoutPanel(25, Unit.PX) {
+		    @Override
+		    public void afterTabWasClosed(Widget w, String text) {
+		        cleanAfterTabWasClosed((KidlWebEditorTab)w, text);
+		    }
+		};
 		centerPanel.add(tabPanel);
 		tabPanel.addSelectionHandler(new SelectionHandler<Integer>() {
 			@Override
@@ -177,11 +182,22 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
 			        typeName, isNew, readOnly);
 			tabMap.put(moduleName, tab);
 			tabIndexMap.put(moduleName, tabIndex);
-			tabPanel.add(tab, moduleName);
+			tabPanel.add(tab, moduleName, true);
 			tabPanel.selectTab(tabIndex);
 		}
 	}
 	
+    public void cleanAfterTabWasClosed(KidlWebEditorTab tab, String moduleName) {
+        tabMap.remove(moduleName);
+        int oldIndex = tabIndexMap.get(moduleName);
+        tabIndexMap.remove(moduleName);
+        for (String tabName : tabIndexMap.keySet()) {
+            int index = tabIndexMap.get(tabName);
+            if (index > oldIndex)
+                tabIndexMap.put(tabName, index - 1);
+        }
+    }
+    
 	public KidlWebEditorTab getSelectedTab() {
 		int ind = tabPanel.getSelectedIndex();
 		return getTabByIndex(ind);
