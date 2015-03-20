@@ -10,10 +10,20 @@
     <servlet-name>gwtServlet</servlet-name>
     <servlet-class>us.kbase.moduleservice.gwt.server.ModuleServiceImpl</servlet-class>
   </servlet>
+
+  <servlet>
+    <servlet-name>generationServlet</servlet-name>
+    <servlet-class>us.kbase.moduleservice.gwt.server.GenerationServlet</servlet-class>
+  </servlet>
   
   <servlet-mapping>
     <servlet-name>gwtServlet</servlet-name>
     <url-pattern>/module_service/gwt</url-pattern>
+  </servlet-mapping>
+
+  <servlet-mapping>
+    <servlet-name>generationServlet</servlet-name>
+    <url-pattern>/generate</url-pattern>
   </servlet-mapping>
   
   <!-- Default page to serve -->

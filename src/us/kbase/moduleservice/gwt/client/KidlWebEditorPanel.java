@@ -730,6 +730,19 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         focus();
     }
 
+    public static native void downloadFile(String url) /*-{
+        console.log("Downloading url=" + url);
+        var hiddenIFrameID = 'hiddenDownloader';
+        var iframe = $doc.getElementById(hiddenIFrameID);
+        if (iframe === null) {
+            iframe = $doc.createElement('iframe');
+            iframe.id = hiddenIFrameID;
+            iframe.style.display = 'none';
+            $doc.body.appendChild(iframe);
+        }
+        iframe.src = url;
+    }-*/;
+    
     public MenuBar createMenu() {
         final KidlWebEditorPanel mainPanel = this;
         MenuBar menu = new MenuBar();
@@ -792,7 +805,12 @@ public class KidlWebEditorPanel extends DockLayoutPanel {
         mdlMenu.addItem("Generate client/servers", new Command() {
             @Override
             public void execute() {
-                Window.alert("This function is not yet supported");
+                String moduleName = getModuleNameForSelectedTab();
+                if (moduleName == null) {
+                    Window.alert("Module is not selected");
+                } else {
+                    downloadFile("generate?module=" + moduleName);
+                }
             }
         });
         MenuBar hlpMenu = new MenuBar(true);
