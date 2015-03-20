@@ -1,11 +1,13 @@
 package us.kbase.moduleservice.gwt.server;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -40,11 +42,11 @@ public class GenerationServlet extends HttpServlet {
     }
     
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) 
+    protected void doPost(HttpServletRequest request, final HttpServletResponse response) 
             throws ServletException, IOException {
         try {
             String token = request.getParameter("token");
-            String module = request.getParameter("module");
+            final String module = request.getParameter("module");
             String verText = request.getParameter("ver");
             String wsUrl = DeployConfig.getConfig().get("ws.url");
             URL wsURL = new URL(wsUrl);
@@ -55,55 +57,76 @@ public class GenerationServlet extends HttpServlet {
             ModuleInfo mi = cl.getModuleInfo(gmiParams);
             String spec = mi.getSpec();
             response.setContentType("application/octet-stream");
-            response.setHeader( "Content-Disposition", "attachment;filename=" + module + "_generated.zip");
-            OutputStream os = response.getOutputStream();
-            final ZipOutputStream zos = new ZipOutputStream(os);
+            final String[] firstFile = {null, null};
+            final ZipOutputStream[] zos = {null};
             FileSaver output = new FileSaver() {
+                int fileCount = 0;
                 @Override
                 public Writer openWriter(String path) throws IOException {
-                    System.out.println("Open zip entry for path: " + path);
-                    zos.putNextEntry(new ZipEntry(path));
-                    final OutputStreamWriter isw = new OutputStreamWriter(zos, Charset.forName("utf-8"));
-                    return new Writer() {  // Unclosable writer wrapper
-                        @Override
-                        public void write(char[] cbuf) throws IOException {
-                            isw.write(cbuf);
-                        }
-                        @Override
-                        public void write(int c) throws IOException {
-                            isw.write(c);
-                        }
-                        @Override
-                        public void write(char[] cbuf, int off, int len) throws IOException {
-                            isw.write(cbuf, off, len);
-                        }
-                        @Override
-                        public void write(String str) throws IOException {
-                            isw.write(str);
-                        }
-                        @Override
-                        public void write(String str, int off, int len)
-                                throws IOException {
-                            isw.write(str, off, len);
-                        }
-                        @Override
-                        public void flush() throws IOException {
-                            isw.flush();
-                        }
+                    //System.out.println("Open zip entry for path: " + path);
+                    if (fileCount == 0 && !path.contains("/")) {
+                        firstFile[0] = path;
+                        return new StringWriter() {
+                            @Override
+                            public void close() throws IOException {
+                                flush();
+                                firstFile[1] = toString();
+                                fileCount++;
+                            }
+                        };
+                    } else {
+                        flushFirstFileIntoZip();
+                        final ZipOutputStream z = getZip();
+                        z.putNextEntry(new ZipEntry(path));
+                        return new OutputStreamWriter(z, Charset.forName("utf-8")) {
+                            @Override
+                            public void close() throws IOException {
+                                flush();
+                                z.closeEntry();
+                                fileCount++;
+                            }
+                        };
+                    }
+                }
+                @Override
+                public OutputStream openStream(String path) throws IOException {
+                    flushFirstFileIntoZip();
+                    final ZipOutputStream z = getZip();
+                    z.putNextEntry(new ZipEntry(path));
+                    return new BufferedOutputStream(z) {
                         @Override
                         public void close() throws IOException {
-                            isw.flush();
-                            zos.closeEntry();
+                            flush();
+                            z.closeEntry();
+                            fileCount++;
                         }
                     };
                 }
                 @Override
-                public OutputStream openStream(String path) throws IOException {
-                    return null;
-                }
-                @Override
                 public File getAsFileOrNull(String path) throws IOException {
                     return null;
+                }
+                private ZipOutputStream getZip() throws IOException {
+                    if (zos[0] == null) {
+                        response.setHeader( "Content-Disposition", "attachment;filename=" + module + "_generated.zip");
+                        final OutputStream ros = response.getOutputStream();
+                        zos[0] = new ZipOutputStream(ros);
+                    }
+                    return zos[0];
+                }
+                private void flushFirstFileIntoZip() throws IOException {
+                    if (firstFile[1] != null) {
+                        if (fileCount != 1)
+                            throw new IllegalStateException("Unexpected file count: " + fileCount);
+                        if (zos[0] != null)
+                            throw new IllegalStateException("Zip stream was already initialized");
+                        final ZipOutputStream z = getZip();
+                        z.putNextEntry(new ZipEntry(firstFile[0]));
+                        z.write(firstFile[1].getBytes(Charset.forName("utf-8")));
+                        z.closeEntry();
+                        firstFile[0] = null;
+                        firstFile[1] = null;
+                    }
                 }
             };
 
@@ -151,7 +174,19 @@ public class GenerationServlet extends HttpServlet {
                     javaLibDir, javaBuildXml, javaGwtPackage, newStyle, ip, output, 
                     jsonSchemas);
             
-            zos.close();
+            if (zos[0] == null) {
+                if (firstFile[1] != null) {
+                    response.setHeader( "Content-Disposition", "attachment;filename=" + firstFile[0]);
+                    final OutputStream ros = response.getOutputStream();
+                    OutputStreamWriter w = new OutputStreamWriter(ros, Charset.forName("utf-8"));
+                    w.write(firstFile[1]);
+                    w.close();
+                }
+            } else {
+                if (firstFile[1] != null)
+                    throw new IllegalStateException("Both in-memory file and zip stream were initialized");
+                zos[0].close();
+            }
         } catch (IOException ex) {
             throw ex;
         } catch (Exception ex) {
