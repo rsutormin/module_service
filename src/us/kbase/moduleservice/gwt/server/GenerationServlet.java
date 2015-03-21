@@ -163,8 +163,8 @@ public class GenerationServlet extends HttpServlet {
                     return null;
                 }
             };
-            FileSaver jsonSchemas = request.getParameter("jsonschema") == null ? null :
-                new NestedFileSaver(output, request.getParameter("jsonschema"));
+            boolean jsonSchema = bool(request.getParameter("jsonschema"));
+            FileSaver jsonSchemas = jsonSchema ? new NestedFileSaver(output, "jsonschema") : null;
             
             ModuleBuilder.generate(specFile, url, jsClientSide, jsClientName, 
                     perlClientSide, perlClientName, perlServerSide, perlServerName, 
