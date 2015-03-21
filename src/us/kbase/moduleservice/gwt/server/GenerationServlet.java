@@ -51,6 +51,7 @@ public class GenerationServlet extends HttpServlet {
             String wsUrl = DeployConfig.getConfig().get("ws.url");
             URL wsURL = new URL(wsUrl);
             WorkspaceClient cl = token == null ? new WorkspaceClient(wsURL) : new WorkspaceClient(wsURL, new AuthToken(token));
+            cl.setAuthAllowedForHttp(true);
             GetModuleInfoParams gmiParams = new GetModuleInfoParams().withMod(module);
             if (verText != null)
                 gmiParams.setVer(Long.parseLong(verText));
@@ -156,13 +157,7 @@ public class GenerationServlet extends HttpServlet {
                 new OneFileSaver(output, request.getParameter("javabuildxml"));
             String javaGwtPackage = request.getParameter("javagwt");
             boolean newStyle = true;
-            IncludeProvider ip = new IncludeProvider() {
-                @Override
-                public Map<String, KbModule> parseInclude(String includeLine)
-                        throws KidlParseException {
-                    return null;
-                }
-            };
+            IncludeProvider ip = new RemoteIncludeProvider(cl, mi);
             boolean jsonSchema = bool(request.getParameter("jsonschema"));
             FileSaver jsonSchemas = jsonSchema ? new NestedFileSaver(output, "jsonschema") : null;
             

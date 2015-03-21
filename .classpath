@@ -8,11 +8,11 @@
 	<classpathentry kind="lib" path="war/WEB-INF/lib/jackson-annotations-2.2.3.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/jackson-core-2.2.3.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/jackson-databind-2.2.3.jar"/>
-	<classpathentry kind="lib" path="war/WEB-INF/lib/kbase_module_builder.zip"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/WorkspaceClient-0.2.0.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/kbase-common-0.0.8.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/codemodel-2.4.1.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/jsonschema2pojo-core-0.3.6.jar"/>
 	<classpathentry kind="lib" path="war/WEB-INF/lib/velocity-1.7.jar"/>
+	<classpathentry kind="lib" path="war/WEB-INF/lib/kbase_module_builder.jar"/>
 	<classpathentry kind="output" path="war/WEB-INF/classes"/>
 </classpath>
